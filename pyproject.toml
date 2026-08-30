@@ -1,0 +1,26 @@
+[project]
+name = "sitio-api"
+version = "0.1.0"
+description = "API del sitio personal."
+requires-python = ">=3.10"
+
+[dependency-groups]
+prd = [
+    "Flask",
+    "Flask-Cors",
+    "gunicorn",
+    "Markdown",
+    "python-frontmatter",
+    "pydantic",
+]
+
+dev = [
+    { include-group = "prd" },
+    "blue",
+    "isort",
+    "pytest",
+    "pytest-cov",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
