@@ -1,3 +1,6 @@
+# Import de Python
+from http import HTTPStatus
+
 # Import de las librerías
 from flask import Flask, redirect
 
@@ -17,8 +20,11 @@ app.register_blueprint(health_blueprint, url_prefix=api_prefix)
 app.register_blueprint(api_v1_blueprint, url_prefix=api_prefix)
 
 # Registro de errores
-app.register_error_handler(404, not_found)
-app.register_error_handler(500, internal_server_error)
+app.register_error_handler(HTTPStatus.NOT_FOUND, not_found)
+app.register_error_handler(
+    HTTPStatus.INTERNAL_SERVER_ERROR,
+    internal_server_error,
+)
 
 # Redirección de la raiz hacia versión actual del app
 @app.get('/')
