@@ -4,7 +4,7 @@ API del sitio personal, desarrollada con Flask y orientada a contenido, internac
 
 ## Objetivo
 
-`site-api` constituye la capa de backend del sitio personal.
+`sitio-api` constituye la capa de backend del sitio personal.
 
 Su función es procesar y exponer contenido para el frontend, manteniendo separadas la lógica de la aplicación y la capa de presentación.
 
@@ -74,14 +74,17 @@ sitio-api/
 │   ├── projects/
 │   └── blog/
 │
-tests/
-├── conftest.py
-├── test_app.py
-├── api/
-│   └── v1/
-│       └── routes/
-│           ├── test_root.py
-│           └── test_health.py
+├── tests/
+│   ├── conftest.py
+│   ├── test_app.py
+│   └── api/
+│       └── v1/
+│           ├── errors/
+│           │   └── test_handlers.py
+│           │
+│           └── routes/
+│               ├── test_root.py
+│               └── test_health.py
 │
 ├── pyproject.toml
 ├── Dockerfile
