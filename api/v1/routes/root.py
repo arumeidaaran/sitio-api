@@ -1,8 +1,8 @@
 from http import HTTPStatus
-from flask import Blueprint
+from flask_openapi import APIBlueprint
 
 
-api_v1_blueprint = Blueprint('root', __name__)
+api_v1_blueprint = APIBlueprint('root', __name__)
 
 
 @api_v1_blueprint.get('/')

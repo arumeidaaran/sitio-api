@@ -12,10 +12,11 @@ prd = [
     "Markdown",
     "python-frontmatter",
     "pydantic",
+    "openapi-core",
+    'flask-openapi[swagger]==5.0.0rc2',
 ]
 
 dev = [
-    { include-group = "prd" },
     "blue",
     "isort",
     "pytest",

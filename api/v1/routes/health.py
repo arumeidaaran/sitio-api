@@ -1,8 +1,8 @@
 from http import HTTPStatus
-from flask import Blueprint
+from flask_openapi import APIBlueprint
 
 
-health_blueprint = Blueprint('health', __name__)
+health_blueprint = APIBlueprint('health', __name__)
 
 
 @health_blueprint.get('/health')
