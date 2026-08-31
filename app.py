@@ -24,14 +24,14 @@ info = Info(
 app = OpenAPI(
     __name__,
     info=info,
-    servers=[
-        {
-            'url': api_prefix,
-        },
-    ],
+    doc_ui=True,
     doc_prefix=f'{api_prefix}/docs',
     doc_url='/openapi.json',
 )
+
+app.config['SWAGGER_CONFIG'] = {
+    'validatorUrl': None,
+}
 
 # Registro de blueprints
 app.register_api(
