@@ -10,7 +10,7 @@ def test_not_found_debe_retornar_respuesta_404():
 
     assert status_code == HTTPStatus.NOT_FOUND
     assert response == {
-        'error': 'not_found',
+        'status': 'not_found',
         'message': 'Recurso no encontrado.',
     }
 
@@ -20,7 +20,7 @@ def test_recurso_inexistente_debe_retornar_404_not_found(client):
 
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.get_json() == {
-        'error': 'not_found',
+        'status': 'not_found',
         'message': 'Recurso no encontrado.',
     }
 
@@ -32,7 +32,7 @@ def test_internal_server_error_debe_retornar_respuesta_500():
 
     assert status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     assert response == {
-        'error': 'internal_server_error',
+        'status': 'internal_server_error',
         'message': 'Error interno del servidor.',
     }
 
@@ -60,6 +60,6 @@ def test_error_interno_debe_retornar_500_internal_server_error(
 
     assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     assert response.get_json() == {
-        'error': 'internal_server_error',
+        'status': 'internal_server_error',
         'message': 'Error interno del servidor.',
     }
