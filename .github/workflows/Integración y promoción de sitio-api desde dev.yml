@@ -1,0 +1,52 @@
+name: Promoción de sitio-api desde dev hacia main
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: write
+
+jobs:
+  validacion:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener repositorio
+        uses: actions/checkout@v6
+
+      - name: Configurar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Instalar dependencias
+        run: python -m pip install --group dev
+
+      - name: Validar formato
+        run: blue --check .
+
+      - name: Validar imports
+        run: isort --check-only .
+
+      - name: Ejecutar pruebas
+        run: python -m pytest --cov=. --cov-report=term-missing --cov-fail-under=100
+
+  promocion:
+    needs:
+      - validacion
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Promover dev hacia main
+        run: |
+          gh api \
+            --method POST \
+            repos/${{ github.repository }}/merges \
+            -f base='main' \
+            -f head='dev' \
+            -f commit_message='Promoción automática de dev hacia main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
