@@ -8,7 +8,6 @@ from schemas.responses import (
     OkResponse,
 )
 
-
 api_v1_blueprint = APIBlueprint('root', __name__)
 
 
