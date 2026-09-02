@@ -1,8 +1,8 @@
 from http import HTTPStatus
 
-from werkzeug.exceptions import NotFound, InternalServerError
+from werkzeug.exceptions import InternalServerError, NotFound
 
-from api.v1.errors.handlers import not_found, internal_server_error
+from api.v1.errors.handlers import internal_server_error, not_found
 
 
 def test_not_found_debe_retornar_respuesta_404():
@@ -26,9 +26,7 @@ def test_recurso_inexistente_debe_retornar_404_not_found(client):
 
 
 def test_internal_server_error_debe_retornar_respuesta_500():
-    response, status_code = internal_server_error(
-        InternalServerError()
-    )
+    response, status_code = internal_server_error(InternalServerError())
 
     assert status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     assert response == {

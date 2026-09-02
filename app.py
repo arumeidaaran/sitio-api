@@ -55,6 +55,7 @@ app.register_error_handler(
     internal_server_error,
 )
 
+
 # OpenAPI JSON
 @app.get(
     f'{api_prefix}/openapi.json',

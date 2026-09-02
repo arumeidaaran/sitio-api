@@ -8,7 +8,6 @@ from schemas.responses import (
     OkResponse,
 )
 
-
 health_blueprint = APIBlueprint('health', __name__)
 
 

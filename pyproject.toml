@@ -2,7 +2,22 @@
 name = "sitio-api"
 version = "0.1.0"
 description = "API del sitio personal."
-requires-python = ">=3.10"
+requires-python = ">=3.11"
+authors = [
+    {name = "Allan Almeida", email = "arumeidaaran@outlook.com"},
+]
+maintainers = [
+    {name = "Allan Almeida", email = "arumeidaaran@outlook.com"},
+]
+readme = {file = "README.md", content-type = "text/markdown"}
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+
+[project.urls]
+Homepage = "..."
+Documentation = "https://github.com/arumeidaaran/sitio-api/blob/main/README.md"
+Repository = "https://github.com/arumeidaaran/sitio-api"
+Changelog = "..."
 
 [dependency-groups]
 prd = [
@@ -13,11 +28,11 @@ prd = [
     "python-frontmatter",
     "pydantic",
     "openapi-core",
-    'flask-openapi[swagger]==5.0.0rc2',
+    "flask-openapi[swagger]==5.0.0rc2",
 ]
 
 dev = [
-    "blue",
+    "ruff",
     "isort",
     "pytest",
     "pytest-cov",
@@ -25,3 +40,21 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 79
+extend-exclude = [
+    "venv314",
+]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.isort]
+profile = "black"
+line_length = 79
+extend_skip = [
+    "venv314",
+]
+skip_gitignore = true

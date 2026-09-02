@@ -1,4 +1,4 @@
-name: Promoción de sitio-api desde dev hacia main
+name: Integración y promoción de sitio-api desde dev
 
 on:
   push:
@@ -22,16 +22,24 @@ jobs:
           python-version: '3.14'
 
       - name: Instalar dependencias
-        run: python -m pip install --group dev
+        run: python -m pip install --group dev --group prd
 
       - name: Validar formato
-        run: blue --check .
+        run: ruff format --check .
 
       - name: Validar imports
         run: isort --check-only .
 
       - name: Ejecutar pruebas
-        run: python -m pytest --cov=. --cov-report=term-missing --cov-fail-under=100
+        run: >
+            python -m pytest
+            -x
+            --strict
+            --cov=.
+            --cov-branch
+            --no-cov-on-fail
+            --cov-report=term-missing
+            --cov-fail-under=100
 
   promocion:
     needs:
