@@ -22,7 +22,7 @@ jobs:
           python-version: '3.14'
 
       - name: Instalar dependencias
-        run: python -m pip install --group dev
+        run: python -m pip install --group dev --group prd
 
       - name: Validar formato
         run: ruff format --check .
