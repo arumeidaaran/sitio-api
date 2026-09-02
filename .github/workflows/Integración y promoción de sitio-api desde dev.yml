@@ -1,4 +1,4 @@
-name: Promoción de sitio-api desde dev hacia main
+name: Integración y promoción de sitio-api desde dev
 
 on:
   push:
@@ -31,7 +31,15 @@ jobs:
         run: isort --check-only .
 
       - name: Ejecutar pruebas
-        run: python -m pytest --cov=. --cov-report=term-missing --cov-fail-under=100
+        run: >
+            python -m pytest
+            -x
+            --strict
+            --cov=.
+            --cov-branch
+            --no-cov-on-fail
+            --cov-report=term-missing
+            --cov-fail-under=100
 
   promocion:
     needs:
