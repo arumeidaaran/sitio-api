@@ -19,4 +19,4 @@ def test_openapi_debe_retornar_documentacion(client):
     assert openapi['info']['title'] == 'sitio-api'
     assert openapi['info']['version'] == '1.0.0'
     assert '/api/v1/' in openapi['paths']
-    assert '/api/v1/health' in openapi['paths']
+    assert '/api/v1/health/' in openapi['paths']

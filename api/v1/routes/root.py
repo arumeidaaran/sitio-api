@@ -1,17 +1,19 @@
 from http import HTTPStatus
 
+from flask import current_app
 from flask_openapi import APIBlueprint
 
 from schemas.responses import (
     InternalServerErrorResponse,
     NotFoundResponse,
     OkResponse,
+    StatusResponse,
 )
 
-api_v1_blueprint = APIBlueprint('root', __name__)
+root_blueprint = APIBlueprint('root', __name__)
 
 
-@api_v1_blueprint.get(
+@root_blueprint.get(
     '/',
     responses={
         HTTPStatus.OK.value: OkResponse,
@@ -20,10 +22,23 @@ api_v1_blueprint = APIBlueprint('root', __name__)
     },
     validate_response=True,
 )
-def root():
-    response = OkResponse(
-        status='ok',
-        message='API disponible.',
+def root() -> tuple[dict[str, object], HTTPStatus]:
+    response = StatusResponse(
+        status='',
+        status_code=0,
+        message='',
+        data=None,
     )
 
-    return response.model_dump(mode='json'), HTTPStatus.OK
+    try:
+        response = OkResponse(
+            message='API disponible.',
+        )
+    except Exception:
+        if response.status_code == 0:
+            current_app.logger.exception(
+                'Error inesperado al consultar la raíz de la API.',
+            )
+            response = InternalServerErrorResponse()
+
+    return response.model_dump(mode='json'), response.status_code
