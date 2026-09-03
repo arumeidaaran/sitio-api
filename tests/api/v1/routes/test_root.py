@@ -19,7 +19,7 @@ def test_error_inesperado_de_raiz_debe_retornar_500(
 ):
     from api.v1.routes import root
 
-    def generar_error():
+    def generar_error(**kwargs):
         raise RuntimeError('Error interno de prueba.')
 
     monkeypatch.setattr(root, 'OkResponse', generar_error)
