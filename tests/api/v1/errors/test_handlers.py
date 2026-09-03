@@ -2,6 +2,7 @@ from http import HTTPStatus
 
 from werkzeug.exceptions import InternalServerError, NotFound
 
+from api.v1.errors import handlers
 from api.v1.errors.handlers import internal_server_error, not_found
 
 
@@ -31,6 +32,54 @@ def test_recurso_inexistente_debe_retornar_404_not_found(client):
 
 def test_internal_server_error_debe_retornar_respuesta_500():
     response, status_code = internal_server_error(InternalServerError())
+
+    assert status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert response == {
+        'status': 'internal_server_error',
+        'status_code': HTTPStatus.INTERNAL_SERVER_ERROR,
+        'message': 'Error interno del servidor.',
+        'data': None,
+    }
+
+
+def test_error_al_construir_not_found_debe_retornar_500(
+    client,
+    monkeypatch,
+):
+    def generar_error():
+        raise RuntimeError('Error interno de prueba.')
+
+    monkeypatch.setattr(handlers, 'NotFoundResponse', generar_error)
+
+    with client.application.app_context():
+        response, status_code = not_found(NotFound())
+
+    assert status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert response == {
+        'status': 'internal_server_error',
+        'status_code': HTTPStatus.INTERNAL_SERVER_ERROR,
+        'message': 'Error interno del servidor.',
+        'data': None,
+    }
+
+
+def test_error_al_construir_internal_server_error_debe_retornar_500(
+    client,
+    monkeypatch,
+):
+    def generar_error():
+        raise RuntimeError('Error interno de prueba.')
+
+    monkeypatch.setattr(
+        handlers,
+        'InternalServerErrorResponse',
+        generar_error,
+    )
+
+    with client.application.app_context():
+        response, status_code = internal_server_error(
+            InternalServerError(),
+        )
 
     assert status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     assert response == {
