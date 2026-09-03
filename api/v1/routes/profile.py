@@ -12,7 +12,7 @@ from schemas.responses import (
 )
 
 idioma_profile_blueprint = APIBlueprint('profile', __name__)
-IDIOMAS_PERMITIDOS = ('es-CO', 'pt-BR', 'en-US', 'ja-JP')
+IDIOMAS_PERMITIDOS = ('ES-CO', 'PT-BR', 'EN-US', 'JA-JP')
 
 
 @idioma_profile_blueprint.get(
@@ -35,7 +35,7 @@ def idioma_profile(
     )
 
     try:
-        if path.idioma not in IDIOMAS_PERMITIDOS:
+        if str(path.idioma).upper() not in IDIOMAS_PERMITIDOS:
             response = NotFoundResponse(
                 message='Idioma no localizado.',
             )
