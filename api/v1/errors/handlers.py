@@ -22,11 +22,10 @@ def not_found(
     try:
         response = NotFoundResponse()
     except Exception:
-        if response.status_code == 0:
-            current_app.logger.exception(
-                'Error inesperado al tratar un recurso no encontrado.',
-            )
-            response = InternalServerErrorResponse()
+        current_app.logger.exception(
+            'Error inesperado al tratar un recurso no encontrado.',
+        )
+        response = InternalServerErrorResponse()
 
     return response.model_dump(mode='json'), response.status_code
 
@@ -44,15 +43,14 @@ def internal_server_error(
     try:
         response = InternalServerErrorResponse()
     except Exception:
-        if response.status_code == 0:
-            current_app.logger.exception(
-                'Error inesperado al construir la respuesta interna.',
-            )
-            response = StatusResponse(
-                status='internal_server_error',
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                message='Error interno del servidor.',
-                data=None,
-            )
+        current_app.logger.exception(
+            'Error inesperado al construir la respuesta interna.',
+        )
+        response = StatusResponse(
+            status='internal_server_error',
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            message='Error interno del servidor.',
+            data=None,
+        )
 
     return response.model_dump(mode='json'), response.status_code

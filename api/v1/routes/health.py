@@ -35,10 +35,9 @@ def health() -> tuple[dict[str, object], HTTPStatus]:
             message='API disponible.',
         )
     except Exception:
-        if response.status_code == 0:
-            current_app.logger.exception(
-                'Error inesperado al consultar la salud de la API.',
-            )
-            response = InternalServerErrorResponse()
+        current_app.logger.exception(
+            'Error inesperado al consultar la salud de la API.',
+        )
+        response = InternalServerErrorResponse()
 
     return response.model_dump(mode='json'), response.status_code
