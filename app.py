@@ -8,7 +8,8 @@ from flask_openapi import Info, OpenAPI
 # Import del proyecto
 from api.v1.errors.handlers import internal_server_error, not_found
 from api.v1.routes.health import health_blueprint
-from api.v1.routes.root import api_v1_blueprint
+from api.v1.routes.profile import idioma_profile_blueprint
+from api.v1.routes.root import root_blueprint
 
 # Inicialización de variables del proyecto
 api_prefix = '/api/v1'
@@ -40,7 +41,12 @@ app.register_api(
 )
 
 app.register_api(
-    api_v1_blueprint,
+    root_blueprint,
+    url_prefix=api_prefix,
+)
+
+app.register_api(
+    idioma_profile_blueprint,
     url_prefix=api_prefix,
 )
 
