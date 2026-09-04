@@ -27,6 +27,74 @@ def test_openapi_debe_retornar_documentacion(client):
     assert '/api/v1/{lang}/profile/' in openapi['paths']
 
 
+def assert_openapi_response_schemas(
+    openapi,
+    path,
+    ok_schema,
+):
+    responses = openapi['paths'][path]['get']['responses']
+
+    expected_schemas = {
+        '200': ok_schema,
+        '404': 'NotFoundResponse',
+        '500': 'InternalServerErrorResponse',
+    }
+
+    for status_code, schema in expected_schemas.items():
+        response_schema = responses[status_code]['content'][
+            'application/json'
+        ]['schema']
+
+        assert response_schema == {
+            '$ref': f'#/components/schemas/{schema}',
+        }
+
+
+def test_openapi_debe_documentar_respuestas_de_root(client):
+    openapi = client.get('/api/v1/openapi.json').get_json()
+
+    assert_openapi_response_schemas(
+        openapi=openapi,
+        path='/api/v1/',
+        ok_schema='OkResponse',
+    )
+
+
+def test_openapi_debe_documentar_respuestas_de_health(client):
+    openapi = client.get('/api/v1/openapi.json').get_json()
+
+    assert_openapi_response_schemas(
+        openapi=openapi,
+        path='/api/v1/health/',
+        ok_schema='OkResponse',
+    )
+
+
+def test_openapi_debe_documentar_respuestas_de_profile(client):
+    openapi = client.get('/api/v1/openapi.json').get_json()
+
+    assert_openapi_response_schemas(
+        openapi=openapi,
+        path='/api/v1/{lang}/profile/',
+        ok_schema='ProfileResponse',
+    )
+
+
+def test_openapi_debe_documentar_datos_de_profile(client):
+    openapi = client.get('/api/v1/openapi.json').get_json()
+    schemas = openapi['components']['schemas']
+
+    assert schemas['ProfileResponse']['properties']['data'] == {
+        '$ref': '#/components/schemas/ProfileData',
+    }
+    assert schemas['ProfileData']['properties']['perfil'] == {
+        '$ref': '#/components/schemas/Profile',
+    }
+    assert schemas['ProfileData']['properties']['contactos'] == {
+        '$ref': '#/components/schemas/Contacts',
+    }
+
+
 def test_aplicacion_debe_exigir_archivo_de_configuracion(monkeypatch):
     with monkeypatch.context() as context:
         context.delenv('PROFILE_CONFIG_FILE', raising=False)
