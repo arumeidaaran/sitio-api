@@ -13,7 +13,6 @@ from schemas.profile import (
 from schemas.responses import (
     InternalServerErrorResponse,
     NotFoundResponse,
-    OkResponse,
     StatusResponse,
 )
 from utils.utils import read_json_file
