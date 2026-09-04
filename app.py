@@ -14,7 +14,10 @@ from api.v1.routes.profile import profile_blueprint
 from api.v1.routes.root import root_blueprint
 
 
-def create_app(profile_config_file: str | None = None, cors_allowed_origin: str | None = None) -> OpenAPI:
+def create_app(
+    profile_config_file: str | None = None,
+    cors_allowed_origin: str | None = None,
+) -> OpenAPI:
     api_prefix = '/api/v1'
 
     if profile_config_file is None:
