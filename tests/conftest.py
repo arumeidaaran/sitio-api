@@ -5,15 +5,31 @@ import pytest
 
 with patch.dict(
     environ,
-    {'PROFILE_CONFIG_FILE': 'profile-config.json'},
+    {
+        'PROFILE_CONFIG_FILE': 'profile-config.json',
+        'CORS_ALLOWED_ORIGIN': 'https://frontend.example',
+    },
 ):
     from api.v1.routes import profile
     from app import create_app
 
 
 @pytest.fixture()
-def app():
-    application = create_app('profile-config.json')
+def profile_config_file():
+    return 'PROFILE_CONFIG_FILE'
+
+
+@pytest.fixture()
+def cors_allowed_origin():
+    return 'https://frontend.example'
+
+
+@pytest.fixture()
+def app(profile_config_file, cors_allowed_origin):
+    application = create_app(
+        profile_config_file=profile_config_file,
+        cors_allowed_origin=cors_allowed_origin,
+    )
     application.config['TESTING'] = True
 
     return application

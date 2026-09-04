@@ -97,10 +97,101 @@ def test_openapi_debe_documentar_datos_de_profile(client):
 
 def test_aplicacion_debe_exigir_archivo_de_configuracion(monkeypatch):
     with monkeypatch.context() as context:
-        context.delenv('PROFILE_CONFIG_FILE', raising=False)
+        context.delenv(
+            'PROFILE_CONFIG_FILE',
+            raising=False,
+        )
 
         with pytest.raises(
             OSError,
-            match='Variable de entorno PROFILE_CONFIG_FILE no definido.',
+            match='Variable de entorno PROFILE_CONFIG_FILE no definida.',
         ):
-            create_app()
+            create_app(
+                cors_allowed_origin='https://frontend.example',
+            )
+
+
+def test_aplicacion_debe_permitir_origen_cors_configurado(
+    client,
+    cors_allowed_origin,
+):
+    response = client.get(
+        '/api/v1/health/',
+        headers={
+            'Origin': cors_allowed_origin,
+        },
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.headers['Access-Control-Allow-Origin'] == (
+        cors_allowed_origin
+    )
+
+
+def test_aplicacion_no_debe_permitir_origen_cors_desconocido(client):
+    response = client.get(
+        '/api/v1/health/',
+        headers={
+            'Origin': 'https://origen-desconocido.example',
+        },
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert 'Access-Control-Allow-Origin' not in response.headers
+
+
+def test_aplicacion_debe_cargar_origen_cors_desde_entorno(monkeypatch):
+    cors_allowed_origin = 'https://frontend-entorno.example'
+
+    with monkeypatch.context() as context:
+        context.setenv(
+            'CORS_ALLOWED_ORIGIN',
+            cors_allowed_origin,
+        )
+
+        application = create_app(
+            profile_config_file='profile-config.json',
+        )
+
+    response = application.test_client().get(
+        '/api/v1/health/',
+        headers={
+            'Origin': cors_allowed_origin,
+        },
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.headers['Access-Control-Allow-Origin'] == (
+        cors_allowed_origin
+    )
+
+
+def test_aplicacion_debe_exigir_origen_cors(monkeypatch):
+    with monkeypatch.context() as context:
+        context.delenv(
+            'CORS_ALLOWED_ORIGIN',
+            raising=False,
+        )
+
+        with pytest.raises(
+            OSError,
+            match='Variable de entorno CORS_ALLOWED_ORIGIN no definida.',
+        ):
+            create_app(
+                profile_config_file='profile-config.json',
+            )
+
+
+def test_aplicacion_no_debe_aplicar_cors_fuera_de_la_api(
+    client,
+    cors_allowed_origin,
+):
+    response = client.get(
+        '/',
+        headers={
+            'Origin': cors_allowed_origin,
+        },
+    )
+
+    assert response.status_code == HTTPStatus.FOUND
+    assert 'Access-Control-Allow-Origin' not in response.headers

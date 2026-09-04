@@ -4,6 +4,7 @@ from os import environ
 
 # Import de las librerías
 from flask import redirect
+from flask_cors import CORS
 from flask_openapi import Info, OpenAPI
 
 # Import del proyecto
@@ -13,14 +14,22 @@ from api.v1.routes.profile import profile_blueprint
 from api.v1.routes.root import root_blueprint
 
 
-def create_app(profile_config_file: str | None = None) -> OpenAPI:
+def create_app(profile_config_file: str | None = None, cors_allowed_origin: str | None = None) -> OpenAPI:
     api_prefix = '/api/v1'
 
     if profile_config_file is None:
         profile_config_file = environ.get('PROFILE_CONFIG_FILE')
 
     if not profile_config_file:
-        raise OSError('Variable de entorno PROFILE_CONFIG_FILE no definido.')
+        raise OSError('Variable de entorno PROFILE_CONFIG_FILE no definida.')
+
+    if cors_allowed_origin is None:
+        cors_allowed_origin = environ.get('CORS_ALLOWED_ORIGIN')
+
+    if not cors_allowed_origin:
+        raise OSError(
+            'Variable de entorno CORS_ALLOWED_ORIGIN no definida.',
+        )
 
     info = Info(
         title='sitio-api',
@@ -34,6 +43,15 @@ def create_app(profile_config_file: str | None = None) -> OpenAPI:
         doc_ui=True,
         doc_prefix=f'{api_prefix}/docs',
         doc_url='/openapi.json',
+    )
+
+    CORS(
+        application,
+        resources={
+            r'/api/*': {
+                'origins': cors_allowed_origin,
+            },
+        },
     )
 
     application.json.ensure_ascii = False
