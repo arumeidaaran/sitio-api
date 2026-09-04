@@ -1,5 +1,6 @@
 # Import de Python
 from http import HTTPStatus
+from os import environ
 
 # Import de las librerías
 from flask import redirect
@@ -8,73 +9,76 @@ from flask_openapi import Info, OpenAPI
 # Import del proyecto
 from api.v1.errors.handlers import internal_server_error, not_found
 from api.v1.routes.health import health_blueprint
-from api.v1.routes.profile import idioma_profile_blueprint
+from api.v1.routes.profile import profile_blueprint
 from api.v1.routes.root import root_blueprint
 
-# Inicialización de variables del proyecto
-api_prefix = '/api/v1'
 
-# Configuración de OpenAPI
-info = Info(
-    title='sitio-api',
-    description='API del sitio personal.',
-    version='1.0.0',
-)
+def create_app(profile_config_file: str | None = None) -> OpenAPI:
+    api_prefix = '/api/v1'
 
-# Inicialización de Flask/OpenAPI
-app = OpenAPI(
-    __name__,
-    info=info,
-    doc_ui=True,
-    doc_prefix=f'{api_prefix}/docs',
-    doc_url='/openapi.json',
-)
+    if profile_config_file is None:
+        profile_config_file = environ.get('PROFILE_CONFIG_FILE')
 
-app.config['SWAGGER_CONFIG'] = {
-    'validatorUrl': None,
-}
+    if not profile_config_file:
+        raise OSError('Variable de entorno PROFILE_CONFIG_FILE no definido.')
 
-# Registro de blueprints
-app.register_api(
-    health_blueprint,
-    url_prefix=api_prefix,
-)
+    info = Info(
+        title='sitio-api',
+        description='API del sitio personal.',
+        version='1.0.0',
+    )
 
-app.register_api(
-    root_blueprint,
-    url_prefix=api_prefix,
-)
+    application = OpenAPI(
+        __name__,
+        info=info,
+        doc_ui=True,
+        doc_prefix=f'{api_prefix}/docs',
+        doc_url='/openapi.json',
+    )
 
-app.register_api(
-    idioma_profile_blueprint,
-    url_prefix=api_prefix,
-)
+    application.json.ensure_ascii = False
+    application.config['SWAGGER_CONFIG'] = {
+        'validatorUrl': None,
+    }
+    application.config['PROFILE_CONFIG_FILE'] = profile_config_file
 
-# Registro de errores
-app.register_error_handler(
-    HTTPStatus.NOT_FOUND,
-    not_found,
-)
+    application.register_api(
+        health_blueprint,
+        url_prefix=api_prefix,
+    )
+    application.register_api(
+        root_blueprint,
+        url_prefix=api_prefix,
+    )
+    application.register_api(
+        profile_blueprint,
+        url_prefix=api_prefix,
+    )
 
-app.register_error_handler(
-    HTTPStatus.INTERNAL_SERVER_ERROR,
-    internal_server_error,
-)
+    application.register_error_handler(
+        HTTPStatus.NOT_FOUND,
+        not_found,
+    )
+    application.register_error_handler(
+        HTTPStatus.INTERNAL_SERVER_ERROR,
+        internal_server_error,
+    )
+
+    @application.get(
+        f'{api_prefix}/openapi.json',
+        doc_ui=False,
+    )
+    def openapi_document():
+        return application.api_doc
+
+    @application.get(
+        '/',
+        doc_ui=False,
+    )
+    def root():
+        return redirect(f'{api_prefix}/')
+
+    return application
 
 
-# OpenAPI JSON
-@app.get(
-    f'{api_prefix}/openapi.json',
-    doc_ui=False,
-)
-def openapi_document():
-    return app.api_doc
-
-
-# Redirección de la raiz hacia versión actual del app
-@app.get(
-    '/',
-    doc_ui=False,
-)
-def root():
-    return redirect(f'{api_prefix}/')
+app = create_app()
