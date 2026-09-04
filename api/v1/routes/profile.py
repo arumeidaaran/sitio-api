@@ -4,7 +4,12 @@ from pathlib import Path
 from flask import current_app
 from flask_openapi import APIBlueprint
 
-from schemas.profile import ProfileConfig, ProfileData, ProfilePath
+from schemas.profile import (
+    ProfileConfig,
+    ProfileData,
+    ProfilePath,
+    ProfileResponse,
+)
 from schemas.responses import (
     InternalServerErrorResponse,
     NotFoundResponse,
@@ -20,7 +25,7 @@ ALLOWED_LANGS = ('es-co', 'pt-br', 'en-us', 'ja-jp')
 @profile_blueprint.get(
     '/<string:lang>/profile/',
     responses={
-        HTTPStatus.OK.value: OkResponse,
+        HTTPStatus.OK.value: ProfileResponse,
         HTTPStatus.NOT_FOUND.value: NotFoundResponse,
         HTTPStatus.INTERNAL_SERVER_ERROR.value: InternalServerErrorResponse,
     },
@@ -77,7 +82,7 @@ def profile(
 
             raise RuntimeError(response.message)
 
-        response = OkResponse(
+        response = ProfileResponse(
             message='Idioma encontrado.',
             data=ProfileData(
                 perfil=profile[0],

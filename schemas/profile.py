@@ -1,4 +1,5 @@
 from schemas.base import ApiModel
+from schemas.responses import OkResponse
 
 
 class ProfilePath(ApiModel):
@@ -40,3 +41,7 @@ class ProfileConfig(ApiModel):
 class ProfileData(ApiModel):
     perfil: Profile
     contactos: Contacts
+
+
+class ProfileResponse(OkResponse):
+    data: ProfileData
