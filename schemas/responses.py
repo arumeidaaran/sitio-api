@@ -1,12 +1,14 @@
 from http import HTTPStatus
 from typing import Literal
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from schemas.base import ApiModel
 
 
 class StatusResponse(ApiModel):
+    model_config = ConfigDict(frozen=True)
+
     status: str
     status_code: int
     message: str
@@ -32,7 +34,5 @@ class InternalServerErrorResponse(StatusResponse):
     status_code: Literal[HTTPStatus.INTERNAL_SERVER_ERROR] = (
         HTTPStatus.INTERNAL_SERVER_ERROR
     )
-    message: Literal['Error interno del servidor.'] = (
-        'Error interno del servidor.'
-    )
+    message: str = 'Error interno del servidor.'
     data: None = None

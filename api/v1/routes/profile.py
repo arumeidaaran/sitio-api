@@ -1,22 +1,24 @@
 from http import HTTPStatus
+from pathlib import Path
 
 from flask import current_app
 from flask_openapi import APIBlueprint
 
-from schemas.profile import ProfilePath
+from schemas.profile import ProfileConfig, ProfileData, ProfilePath
 from schemas.responses import (
     InternalServerErrorResponse,
     NotFoundResponse,
     OkResponse,
     StatusResponse,
 )
+from utils.utils import read_json_file
 
-idioma_profile_blueprint = APIBlueprint('profile', __name__)
-IDIOMAS_PERMITIDOS = ('ES-CO', 'PT-BR', 'EN-US', 'JA-JP')
+profile_blueprint = APIBlueprint('profile', __name__)
+ALLOWED_LANGS = ('es-co', 'pt-br', 'en-us', 'ja-jp')
 
 
-@idioma_profile_blueprint.get(
-    '/<string:idioma>/profile/',
+@profile_blueprint.get(
+    '/<string:lang>/profile/',
     responses={
         HTTPStatus.OK.value: OkResponse,
         HTTPStatus.NOT_FOUND.value: NotFoundResponse,
@@ -24,7 +26,7 @@ IDIOMAS_PERMITIDOS = ('ES-CO', 'PT-BR', 'EN-US', 'JA-JP')
     },
     validate_response=True,
 )
-def idioma_profile(
+def profile(
     path: ProfilePath,
 ) -> tuple[dict[str, object], HTTPStatus]:
     response = StatusResponse(
@@ -35,15 +37,50 @@ def idioma_profile(
     )
 
     try:
-        if str(path.idioma).upper() not in IDIOMAS_PERMITIDOS:
+        lang_path = str(path.lang).lower()
+
+        if lang_path not in ALLOWED_LANGS:
             response = NotFoundResponse(
                 message='Idioma no localizado.',
             )
 
             raise ValueError(response.message)
 
+        profile_config_file_path = current_app.config['PROFILE_CONFIG_FILE']
+        profile_config_file = Path(profile_config_file_path).absolute()
+
+        if not profile_config_file.exists():
+            response = InternalServerErrorResponse(
+                message=(
+                    'Camino del archivo de configuración '
+                    'de perfil no encontrado.'
+                ),
+            )
+
+            raise RuntimeError(response.message)
+
+        profile_config_file_content = ProfileConfig.model_validate(
+            read_json_file(profile_config_file),
+        )
+        profile = [
+            perfil
+            for perfil in profile_config_file_content.perfiles
+            if lang_path == perfil.idioma.lower()
+        ]
+
+        if profile == []:
+            response = InternalServerErrorResponse(
+                message=('El idioma solicitado no está configurado en el perfil.'),
+            )
+
+            raise RuntimeError(response.message)
+
         response = OkResponse(
             message='Idioma encontrado.',
+            data=ProfileData(
+                perfil=profile[0],
+                contactos=profile_config_file_content.contactos,
+            ).model_dump(mode='json'),
         )
     except Exception:
         if response.status_code == 0:

@@ -1,5 +1,9 @@
 from http import HTTPStatus
 
+import pytest
+
+from app import create_app
+
 
 def test_raiz_debe_redirigir_a_raiz_de_la_version_de_api_actual(client):
     response = client.get('/')
@@ -20,3 +24,14 @@ def test_openapi_debe_retornar_documentacion(client):
     assert openapi['info']['version'] == '1.0.0'
     assert '/api/v1/' in openapi['paths']
     assert '/api/v1/health/' in openapi['paths']
+
+
+def test_aplicacion_debe_exigir_archivo_de_configuracion(monkeypatch):
+    with monkeypatch.context() as context:
+        context.delenv('PROFILE_CONFIG_FILE', raising=False)
+
+        with pytest.raises(
+            OSError,
+            match='Variable de entorno PROFILE_CONFIG_FILE no definido.',
+        ):
+            create_app()
