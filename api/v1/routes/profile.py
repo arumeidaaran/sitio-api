@@ -70,7 +70,9 @@ def profile(
 
         if profile == []:
             response = InternalServerErrorResponse(
-                message=('El idioma solicitado no está configurado en el perfil.'),
+                message=(
+                    'El idioma solicitado no está configurado en el perfil.'
+                ),
             )
 
             raise RuntimeError(response.message)

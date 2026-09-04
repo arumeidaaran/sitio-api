@@ -58,9 +58,7 @@ def test_profile_debe_retornar_caracteres_unicode_sin_escape(
     read_profile_config_mock,
 ):
     profile_config_data['perfiles'][0]['nombre'] = 'アラン'
-    profile_config_data['perfiles'][0]['acerca_de'] = (
-        'Automação de processos.'
-    )
+    profile_config_data['perfiles'][0]['acerca_de'] = 'Automação de processos.'
 
     response = client.get('/api/v1/pt-BR/profile/')
 

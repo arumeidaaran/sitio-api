@@ -25,10 +25,7 @@ def test_sitio_web_debe_aceptar_texto(profile_config_data):
 
     profile_config = ProfileConfig.model_validate(profile_config_data)
 
-    assert (
-        profile_config.contactos.sitio_web
-        == 'https://subdominio.dominio'
-    )
+    assert profile_config.contactos.sitio_web == 'https://subdominio.dominio'
 
 
 def test_sitio_web_debe_ser_obligatorio(profile_config_data):
