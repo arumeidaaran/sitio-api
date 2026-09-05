@@ -1,5 +1,7 @@
 FROM python:3.14-slim
 
+ARG SITIO_API_BRANCH=main
+
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
@@ -13,7 +15,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone \
-    --branch feature/creacion-perfil-personal-portafolio \
+    --branch "${SITIO_API_BRANCH}" \
     --single-branch \
     https://github.com/arumeidaaran/sitio-api.git \
     .
