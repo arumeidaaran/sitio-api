@@ -18,7 +18,7 @@ El proyecto forma parte de una arquitectura separada entre frontend y backend.
 Frontend
 GitHub Pages
       |
-      | HTTP
+      | HTTPS
       V
 sitio-api
 Flask
@@ -27,7 +27,7 @@ Flask
 Contenido, servicios y fuentes de datos
 ```
 
-Durante el desarrollo local, la API será ejecutada mediante Docker y expuesta a través de la dirección IP del equipo anfitrión.
+Durante el desarrollo local, la API puede ser ejecutada mediante Docker y expuesta a través de la dirección IP del equipo anfitrión.
 
 ```text
 IP del equipo
@@ -36,10 +36,29 @@ IP del equipo
 Docker
       |
       V
+Gunicorn
+      |
+      V
 Flask
 ```
 
-El contenedor utilizado durante el desarrollo deberá poder ser reutilizado posteriormente en la plataforma elegida para alojar el backend.
+La arquitectura de despliegue definida utiliza `GitHub Container Registry` para almacenar la imagen de forma privada y `Northflank Developer Sandbox` para ejecutar el contenedor.
+
+```text
+Código fuente
+GitHub
+      |
+      V
+Construcción Docker
+      |
+      V
+Imagen privada
+GitHub Container Registry
+      |
+      V
+Contenedor
+Northflank
+```
 
 La API utiliza contratos de datos definidos mediante Pydantic y genera su especificación OpenAPI a partir de las rutas y modelos registrados en la aplicación.
 
@@ -64,72 +83,81 @@ Flask
 
 ## Tecnologías
 
-El backend utiliza Python y Flask.
+El backend utiliza `Python` y `Flask`. `Gunicorn` constituye el servidor WSGI de la aplicación en el contenedor.
 
-Las dependencias de producción incluyen framework de API, WSGI, formateador de documentación, validador de tipos y retornos, y documentación técnica con soporte para Swagger UI.
+`Flask-CORS` controla el origen autorizado para acceder a la API. `Pydantic` define y valida los contratos de datos. `Flask-OpenAPI` genera la especificación `OpenAPI` y proporciona la documentación interactiva mediante `Swagger UI`.
 
-Swagger UI proporciona una interfaz interactiva para consultar y ejecutar las operaciones documentadas por la API.
-
-Las herramientas utilizadas durante el desarrollo incluyen validador de convenciones de Python, framework de pruebas unitarias y de cobertura de código.
+Docker proporciona un entorno común para el desarrollo local y el despliegue. La imagen de producción es almacenada de forma privada en GitHub Container Registry y ejecutada mediante Northflank.
+Las herramientas de desarrollo incluyen `Ruff`, `isort`, `pytest` y `pytest-cov` para el formato, la organización de imports, las pruebas automatizadas y la cobertura de código.
 
 Las dependencias son declaradas mediante `pyproject.toml`. Los archivos `requirements.txt` y `requirements_dev.txt` son mantenidos adicionalmente por motivos de compatibilidad con herramientas y automatizaciones existentes.
 
-## API
+## Estructura del proyecto
 
-La API es versionada desde su primera versión.
-
-Actualmente utiliza OpenAPI 3.1.0 para describir formalmente sus operaciones, respuestas y schemas.
+La estructura actual del código principal es:
 
 ```text
 sitio-api/
-│
-├── app.py
-│
-├── api/
-│   └── v1/
-│       ├── errors/
-│       │   └── handlers.py
-│       │
-│       └── routes/
-│           ├── root.py
-│           └── health.py
-│
-├── services/
-│   └── content.py
-│
-├── schemas/
-│   ├── base.py
-│   ├── responses.py
-│   └── content.py
-│
-├── content/
-│   ├── profile/
-│   ├── projects/
-│   └── blog/
-│
-├── tests/
-│   ├── conftest.py
-│   ├── test_app.py
-│   └── api/
-│       └── v1/
-│           ├── errors/
-│           │   └── test_handlers.py
-│           │
-│           └── routes/
-│               ├── test_root.py
-│               └── test_health.py
-│
-├── pyproject.toml
-├── Dockerfile
-├── .dockerignore
-└── .gitignore
+|
++-- app.py
++-- api/
+|   +-- v1/
+|       +-- errors/
+|       |   +-- handlers.py
+|       |
+|       +-- routes/
+|           +-- root.py
+|           +-- health.py
+|           +-- profile.py
+|
++-- schemas/
+|   +-- base.py
+|   +-- responses.py
+|   +-- profile.py
+|
++-- utils/
+|   +-- utils.py
+|
++-- tests/
+|   +-- conftest.py
+|   +-- test_app.py
+|   +-- api/
+|   |   +-- v1/
+|   |       +-- errors/
+|   |       |   +-- test_handlers.py
+|   |       |
+|   |       +-- routes/
+|   |           +-- test_root.py
+|   |           +-- test_health.py
+|   |           +-- test_profile.py
+|   |
+|   +-- schemas/
+|   |   +-- test_profile_schema.py
+|   |   +-- test_responses.py
+|   |
+|   +-- utils/
+|       +-- test_utils.py
+|
++-- Docs/
+|   +-- mapeo_contenido_sitio.md
+|
++-- .github/
+|   +-- workflows/
+|       +-- Integración y promoción de sitio-api desde dev.yml
+|
++-- pyproject.toml
++-- Dockerfile
++-- .dockerignore
++-- .gitignore
++-- LICENSE
++-- README.md
 ```
 
-`app.py` constituye el punto de entrada de la aplicación.
+`app.py` constituye el punto de entrada de la aplicación. Es responsable de crear la aplicación, configurar CORS, registrar las rutas y los manejadores de errores, generar la documentación y redirigir la raíz hacia la versión actual de la API.
 
-La aplicación genera una especificación OpenAPI a partir de sus rutas y contratos de datos.
+## API
 
-También es responsable de registrar los manejadores de errores y la redirección de la raíz de la aplicación hacia la versión actual de la API.
+La API es versionada desde su primera versión y utiliza `OpenAPI 3.1.0` para describir formalmente sus operaciones, respuestas y schemas.
 
 Actualmente están disponibles:
 
@@ -140,8 +168,11 @@ Actualmente están disponibles:
 /api/v1/
 => raíz de la versión actual
 
-/api/v1/health
+/api/v1/health/
 => comprobación de estado de la API
+
+/api/v1/{lang}/profile/
+=> perfil correspondiente al idioma solicitado
 
 /api/v1/openapi.json
 => especificación OpenAPI de la API
@@ -156,17 +187,16 @@ Actualmente están disponibles:
 => especificación utilizada por la documentación
 ```
 
-La versión `v1` mantiene separadas sus rutas y sus manejadores de errores.
+La versión `v1` mantiene separadas sus rutas y sus manejadores de errores. Las rutas registradas por la aplicación son incorporadas automáticamente a la especificación OpenAPI y documentan sus posibles respuestas mediante modelos Pydantic.
 
-Las rutas registradas por la aplicación son incorporadas automáticamente a la especificación OpenAPI.
-
-Las rutas documentan sus posibles respuestas mediante modelos Pydantic.
-
-Actualmente se utilizan contratos específicos para respuestas satisfactorias y errores HTTP.
+Actualmente se utilizan contratos específicos para respuestas satisfactorias, datos del perfil y errores HTTP.
 
 ```text
 OkResponse
 => respuesta satisfactoria
+
+ProfileResponse
+=> respuesta satisfactoria con datos del perfil
 
 NotFoundResponse
 => recurso no encontrado
@@ -175,42 +205,97 @@ InternalServerErrorResponse
 => error interno del servidor
 ```
 
-Los errores HTTP `404 Not Found` y `500 Internal Server Error` disponen de respuestas JSON propias y son registrados globalmente por la aplicación.
+Los errores HTTP `404 Not Found` y `500 Internal Server Error` disponen de respuestas JSON propias. Sus manejadores son registrados globalmente por la aplicación.
 
 Las respuestas siguen una estructura común:
 
 ```json
 {
     "status": "estado",
-    "message": "Descripción del estado."
+    "status_code": 200,
+    "message": "Descripción del estado.",
+    "data": {}
 }
 ```
 
-Los códigos HTTP continúan siendo responsables de representar el resultado protocolar de cada solicitud.
+El código HTTP retornado por el servidor y el campo `status_code` representan el resultado protocolar de la solicitud. El campo `data` contiene los datos de la operación o `null` cuando la respuesta no los proporciona.
 
-Las rutas y contratos adicionales serán incorporados progresivamente durante el desarrollo.
+## Perfil
+
+El perfil se obtiene mediante una ruta localizada:
+
+```HTTP
+GET /api/v1/{lang}/profile/
+```
+
+La ruta acepta los idiomas configurados por la aplicación y normaliza la etiqueta recibida antes de buscar el perfil correspondiente.
+
+Actualmente están disponibles las siguientes variantes:
+
+```text
+es-co
+pt-br
+en-us
+ja-jp
+```
+
+Cada perfil contiene su identificador, idioma, nombre, descripción y texto de presentación. La respuesta también incorpora los datos de contacto asociados al perfil.
+
+La fuente de datos es un archivo JSON local y multilingüe. Su estructura completa es validada mediante Pydantic antes de formar la respuesta. Los caracteres Unicode son retornados directamente en el JSON, sin transformar los textos localizados en secuencias escapadas.
+
+El endpoint utiliza un archivo de configuración JSON que debe estar disponible durante la construcción de la imagen Docker. El archivo es incorporado físicamente al contenedor de producción y contiene un perfil para cada idioma admitido, además de los datos de contacto. Su estructura es la siguiente:
+
+```JSON
+{
+    "perfiles": [
+        {
+            "id": 0,
+            "idioma": "string",
+            "nombre": "string",
+            "descripcion": "string",
+            "acerca_de": "string"
+        }
+    ],
+    "contactos": {
+        "linkedin": "string",
+        "github": "string",
+        "sitio_web": null,
+        "correos_electronicos": [
+            {
+                "tipo": "string",
+                "direccion": "string"
+            }
+        ],
+        "telefonos": [
+            {
+                "tipo": "string",
+                "formato": "string",
+                "numero": "string"
+            }
+        ]
+    }
+}
+```
+
+Por lo que cada idioma va dentro de `perfiles` y es etiquetado en `idioma` por su sigla en formato `BCP 47` de globalización de nombres de idiomas. Una llamada de idioma no admitida en la URL produce una respuesta `404 Not Found`, pues se identifican en la aplicación como parte de la ruta. Los problemas relacionados con su existencia, lectura o validación en el archivo de configuración producen una respuesta `500 Internal Server Error`.
 
 ## OpenAPI
 
 La especificación OpenAPI es generada a partir de la propia aplicación y de los contratos registrados en sus rutas.
 
-Actualmente se utiliza OpenAPI 3.1.0.
+Actualmente se utiliza OpenAPI 3.1.0. La especificación puede ser consultada directamente mediante:
 
-La especificación puede ser consultada directamente mediante:
-
-```text
+```Shell
 /api/v1/openapi.json
 ```
 
 La documentación utilizada por Swagger UI también está disponible mediante:
 
-```text
+```Shell
 /api/v1/docs/openapi.json
 ```
 
-Los `paths` son generados a partir de las rutas registradas por la aplicación, evitando mantener manualmente una segunda definición de las operaciones HTTP.
-
-Los schemas de las respuestas son generados a partir de los modelos Pydantic utilizados por la aplicación.
+Los `paths` son generados a partir de las rutas registradas por la aplicación, evitando mantener manualmente una segunda definición de las operaciones HTTP. Los schemas de las respuestas son generados a partir de los modelos Pydantic utilizados por la aplicación.
 
 Conceptualmente:
 
@@ -231,7 +316,7 @@ La especificación también incluye los modelos asociados a la validación de la
 
 La documentación interactiva está disponible mediante Swagger UI.
 
-```text
+```Shell
 /api/v1/docs/swagger
 ```
 
@@ -239,15 +324,11 @@ Swagger UI consume la especificación OpenAPI generada por la aplicación y perm
 
 La validación remota de Swagger UI está deshabilitada mediante la configuración de `validatorUrl`, evitando depender de un servicio externo para validar una API ejecutada en un entorno local o privado.
 
-La validación del contrato puede realizarse localmente mediante las herramientas utilizadas por el propio proyecto.
-
 ## Pydantic
 
 Los datos de la aplicación son definidos mediante contratos que establecen los campos, tipos y restricciones permitidos.
 
-Los modelos comunes heredan de una clase base propia que configura el comportamiento general de validación.
-
-Los contratos internos rechazan propiedades adicionales no definidas explícitamente.
+Los modelos comunes heredan de una clase base propia que configura el comportamiento general de validación. Los contratos rechazan propiedades adicionales no definidas explícitamente y las respuestas no permiten cambios después de ser creadas.
 
 Conceptualmente:
 
@@ -255,102 +336,28 @@ Conceptualmente:
 ApiModel
   |
   +-- StatusResponse
-          |
-          +-- OkResponse
-          +-- NotFoundResponse
-          +-- InternalServerErrorResponse
+  |       |
+  |       +-- OkResponse
+  |       |       |
+  |       |       +-- ProfileResponse
+  |       |
+  |       +-- NotFoundResponse
+  |       +-- InternalServerErrorResponse
+  |
+  +-- ProfilePath
+  +-- ProfileConfig
+  +-- ProfileData
 ```
 
-`StatusResponse` define la estructura común de las respuestas de estado.
+`StatusResponse` define la estructura común de las respuestas de estado. Los modelos derivados restringen los valores permitidos para cada respuesta concreta.
 
-Los modelos derivados restringen los valores permitidos para cada respuesta concreta.
+`ProfileConfig` valida la fuente completa del perfil y sus estructuras anidadas. `ProfileData` define los datos retornados y `ProfileResponse` integra estos datos en el contrato común de respuesta satisfactoria.
 
 Las respuestas de las rutas son validadas mediante Pydantic antes de ser retornadas por la API.
 
-Los futuros contratos relacionados con perfil, proyectos, blog, configuración y fuentes externas también utilizarán Pydantic para validar sus estructuras.
-
-## Estructura del contenido
-
-El sitio será organizado inicialmente alrededor de tres áreas principales:
-
-```text
-Perfil
-Proyectos
-Blog
-```
-
-Estas áreas utilizarán una misma API, pero no necesariamente la misma fuente de datos.
-
-### Perfil
-
-La información del perfil será mantenida localmente en un archivo de configuración estructurado en JSON.
-
-El contenido será almacenado por idioma y podrá incluir información como la presentación personal, trayectoria profesional, formación, tecnologías, áreas de actuación e idiomas.
-
-Los datos serán validados mediante modelos Pydantic antes de ser utilizados o expuestos por la API.
-
-### Proyectos
-
-Los proyectos combinarán dos fuentes de información.
-
-Un archivo JSON local será responsable de definir qué repositorios forman parte del sitio, proporcionar un identificador numérico estable para cada proyecto y almacenar los textos dependientes del idioma, principalmente las descripciones.
-
-La API de GitHub será utilizada para recuperar información técnica y objetiva de los repositorios, como nombre, enlace, lenguajes, distribución de lenguajes, fechas, licencia, tópicos, estrellas, forks y otros metadatos que puedan ser útiles para el frontend.
-
-Conceptualmente:
-
-```text
-Configuración JSON
-        |
-        | Identificador y contenido localizado
-        |
-        +----------+
-                   |
-                   V
-            API del proyecto
-                   ^
-                   |
-        +----------+
-        |
-GitHub REST API
-        |
-        | Información técnica
-```
-
-Los identificadores internos de los proyectos serán numéricos y permanecerán independientes del nombre del repositorio.
-
-Ejemplo conceptual:
-
-```json
-{
-    "id": 1,
-    "repository": "usuario_de_github/nome-del-proyecto",
-    "descriptions": {
-        "es-CO": "Descripción del proyecto.",
-        "pt-BR": "Descrição do projeto.",
-        "en-US": "Project description.",
-        "ja-JP": "プロジェクトの説明。"
-    }
-}
-```
-
-El nombre del repositorio no será utilizado como identificador interno.
-
-Tanto la configuración local como los datos obtenidos desde GitHub serán normalizados y validados antes de formar parte de una respuesta de la API.
-
-### Blog
-
-El blog utilizará archivos Markdown como fuente principal de contenido.
-
-Cada publicación podrá disponer de versiones independientes para los idiomas soportados. Los metadatos asociados permitirán identificar la publicación, el idioma y demás propiedades necesarias para procesarla y exponerla mediante la API.
-
-Markdown será utilizado para el contenido editorial del blog y no como formato general de configuración de la aplicación.
-
-Los metadatos asociados a las publicaciones serán validados mediante modelos Pydantic.
-
 ## Fuentes de datos
 
-La distribución inicial de responsabilidades será:
+La distribución de responsabilidades definida para el contenido es:
 
 ```text
 Perfil
@@ -364,63 +371,126 @@ Blog
 => Markdown multilingüe
 ```
 
-El frontend no deberá depender de estas fuentes directamente. `Sitio-api` será responsable de obtener, validar y normalizar los datos antes de retornarlos en JSON.
+El perfil constituye la primera fuente implementada. Los recursos relacionados con proyectos y blog forman parte de las siguientes fases del desarrollo.
+
+El frontend no deberá depender directamente de las fuentes de datos. `Sitio-api` será responsable de obtener, validar y normalizar la información antes de retornarla en JSON.
 
 Esto permite que el frontend utilice una estructura estable independientemente de si determinada información proviene de GitHub, de un archivo local o de Markdown.
 
 ## Internacionalización
 
-El sistema será preparado para trabajar con múltiples idiomas.
+El sistema trabaja con etiquetas de idioma explícitas. Estas etiquetas no son inferidas automáticamente a partir del contenido.
 
-Los textos localizables serán mantenidos separadamente de los datos técnicos que no dependen del idioma.
+Los textos localizables se mantienen separados de los datos que no dependen del idioma. La API conserva una misma estructura de respuesta para todas las variantes; el idioma solicitado modifica el contenido textual, no el contrato general del recurso.
 
-Por ejemplo, un proyecto tendrá un único identificador, repositorio, enlace y conjunto de datos técnicos, mientras que su descripción podrá disponer de una versión para cada idioma soportado.
+La normalización de la etiqueta recibida permite procesar diferencias de mayúsculas y minúsculas sin modificar los identificadores almacenados en la fuente de datos.
 
-La API deberá mantener una misma estructura de respuesta para todos los idiomas. El idioma solicitado modificará el contenido textual, no el contrato general del recurso.
+## CORS
 
-Las etiquetas de idioma serán explícitas y no serán inferidas automáticamente a partir del contenido.
+El acceso entre el frontend y la API se controla mediante CORS.
 
-Inicialmente se prevé soporte para variantes como:
+La configuración se aplica exclusivamente a las rutas bajo `/api/`. El origen permitido se obtiene desde el entorno de ejecución, evitando mantener un dominio específico escrito en el código.
+
+Las solicitudes procedentes del origen configurado reciben la cabecera CORS correspondiente. Los orígenes desconocidos no reciben la cabecera `Access-Control-Allow-Origin` y la redirección ubicada fuera de `/api/` tampoco recibe cabeceras CORS.
+
+## Configuración
+
+La aplicación requiere dos variables de entorno:
 
 ```text
-es-CO
-pt-BR
-en-US
-ja-JP
+PROFILE_CONFIG_FILE
+=> camino del archivo JSON utilizado por el endpoint de perfil
+
+CORS_ALLOWED_ORIGIN
+=> origen autorizado para realizar solicitudes desde el frontend
 ```
+
+Ambas configuraciones deben estar disponibles al iniciar la aplicación. Sus valores pueden proceder del sistema local o de la plataforma de ejecución y no se mantienen escritos directamente en el código.
+
+## Docker
+
+El `Dockerfile` construye el entorno de ejecución a partir de una imagen de Python, actualiza sus paquetes de sistema e instala las herramientas necesarias para obtener el código fuente.
+
+La rama utilizada durante la construcción se controla mediante el argumento `SITIO_API_BRANCH`, cuyo valor predeterminado es `main`. Después de obtener el código, Docker instala el grupo de dependencias de producción declarado en `pyproject.toml` y verifica la consistencia de la instalación.
+
+El archivo privado de configuración del perfil se copia desde el contexto de construcción hacia `/app/config/profile-config.json`. Por este motivo, el archivo debe estar disponible físicamente antes de construir la imagen, aunque permanezca excluido del repositorio mediante `.gitignore`.
+
+La aplicación es servida por Gunicorn en el puerto `5000`. El contenedor incluye una comprobación periódica de salud contra el endpoint `/api/v1/health/`.
+
+`.dockerignore` excluye del contexto los entornos virtuales, caches, resultados de cobertura, pruebas, documentación, scripts auxiliares y demás archivos que no forman parte de la ejecución de producción.
+
+Como la imagen contiene el archivo de configuración del perfil, su publicación debe conservarse privada.
+
+## Despliegue
+
+La arquitectura de despliegue definida utiliza una imagen privada almacenada en GitHub Container Registry.
+
+Northflank Developer Sandbox es responsable de obtener la imagen, proporcionar las variables de entorno, exponer el puerto de la aplicación y mantener el servicio en ejecución.
+
+```text
+main
+  |
+  V
+Construcción de la imagen
+  |
+  V
+GitHub Container Registry
+  |
+  V
+Northflank Developer Sandbox
+  |
+  V
+sitio-api
+```
+
+La publicación de la imagen y la creación del servicio forman parte de la fase de despliegue. Hasta completar esa fase, la arquitectura representa la configuración elegida y no un servicio público ya disponible.
+
+## Integración y promoción
+
+La rama `dev` constituye la rama de integración del proyecto. Cada actualización ejecuta el workflow de validación, que comprueba padronización de código, los imports, las pruebas y la cobertura.
+
+La promoción solo ocurre cuando todas las validaciones terminan correctamente. Una GitHub App dedicada realiza el cambio sobre la rama protegida `main`.
+
+```text
+dev
+  |
+  V
+Ruff + isort + pytest + cobertura
+  |
+  V
+GitHub App de promoción
+  |
+  V
+main
+```
+
+El token normal de GitHub Actions dispone únicamente de permiso de lectura. La identidad autorizada para actualizar `main` es la GitHub App utilizada por el workflow de promoción.
 
 ## Validación
 
-Los datos procesados por la aplicación serán validados antes de ser utilizados o expuestos por la API.
+Los datos procesados por la aplicación son validados antes de ser utilizados o expuestos por la API.
 
-Pydantic constituye el sistema principal para definir contratos de datos, verificar tipos, controlar campos obligatorios y limitar estructuras permitidas.
+Pydantic constituye el sistema principal para definir contratos, verificar tipos, controlar campos obligatorios y limitar estructuras permitidas.
 
-Las respuestas de los endpoints actuales son validadas.
-
-Los datos provenientes de archivos locales, Markdown, servicios internos y fuentes externas utilizarán modelos específicos de acuerdo con el origen y el contrato esperado.
-
-Los identificadores de entidades como proyectos serán representados mediante valores enteros.
-
-La especificación de la API forma parte de su infraestructura y debe poder ser validada de forma independiente.
+La especificación OpenAPI dispone de pruebas que verifican sus rutas, respuestas y relaciones entre schemas. La configuración del perfil, las respuestas HTTP, CORS y las fuentes locales también son validados mediante pruebas dedicadas.
 
 ## Pruebas
 
-Las pruebas automatizadas utilizan un framework de pruebas unitarias y herramientas de cobertura de código.
+Las pruebas automatizadas cubren la creación de la aplicación, las rutas, los manejadores de errores, los contratos Pydantic, la lectura de archivos, CORS y la documentación OpenAPI.
 
-Las respuestas de error son probadas tanto directamente mediante sus manejadores como mediante solicitudes HTTP realizadas contra la aplicación.
-
-La especificación de la API también dispone de una prueba dedicada para verificar que pueda ser obtenida y contenga los elementos principales esperados.
-
-La cobertura puede ser consultada desde la consola y generada también en formato HTML mediante este comando:
+La suite se ejecuta en modo estricto, mide instrucciones y ramas, evita publicar un resultado de cobertura cuando existen pruebas fallidas y exige cobertura completa.
 
 ```Shell
-pytest -x --cov=. --cov-report=term-missing --cov-report=html
+python -m pytest -x -s -vv --strict --cov=. --cov-branch --no-cov-on-fail --cov-report=term-missing --cov-report=html --cov-fail-under=100
 ```
 
-La suite debe tener la cobertura completa:
-- Todas las pruebas aprobadas
-- 100% de cobertura
+El resultado esperado es:
 
+```text
+Todas las pruebas aprobadas
+100% de cobertura de instrucciones
+100% de cobertura de ramas
+```
 
 ## Licencia
 
