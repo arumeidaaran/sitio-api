@@ -58,11 +58,18 @@ jobs:
 
       - name: Promover dev hacia main
         run: |
-          gh api \
-            --method POST \
-            repos/${{ github.repository }}/merges \
-            -f base='main' \
-            -f head='dev' \
-            -f commit_message='Promoción automática de dev hacia main'
+          curl \
+            --fail-with-body \
+            --silent \
+            --show-error \
+            --retry 3 \
+            --retry-delay 2 \
+            --request POST \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            --data '{"base":"main","head":"dev","commit_message":"Promoción automática de dev hacia main"}' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/merges"
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
