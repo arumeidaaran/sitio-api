@@ -42,7 +42,7 @@ Gunicorn
 Flask
 ```
 
-La arquitectura de despliegue definida utiliza `GitHub Container Registry` para almacenar la imagen de forma privada y `Northflank Developer Sandbox` para ejecutar el contenedor.
+La arquitectura de despliegue utiliza `GitHub Container Registry` para almacenar la imagen de forma privada y `Northflank Developer Sandbox` para ejecutar el contenedor.
 
 ```text
 Código fuente
@@ -58,6 +58,9 @@ GitHub Container Registry
       V
 Contenedor
 Northflank
+      |
+      +-- Variables de entorno
+      +-- Archivo de configuración privado
 ```
 
 La API utiliza contratos de datos definidos mediante Pydantic y genera su especificación OpenAPI a partir de las rutas y modelos registrados en la aplicación.
@@ -80,6 +83,27 @@ Flask
           |
           +-- Documentación interactiva
 ```
+
+## Artefactos y sus permisos
+
+Hay una relación de qué partes del proyecto son públicas y qué partes son privadas:
+
+| Artefactos                  | Permiso                     |
+| --------------------------- | --------------------------- |
+| Repositorio del proyecto    | Público en GitHub           |
+| Imagen OCI                  | Privada en GHCR             |
+| Archivo profile-config.json | Privado en Northflank       |
+| Servicio HTTPS de API       | Público en Internet         |
+
+La tabla diferencia:
+- El repositorio del proyecto es público. Cualquiera puede consultar el código fuente en GitHub.  
+
+- La Open Container Initiative Image (imagen OCI) es el paquete ejecutable construido mediante Docker. Está almacenada privadamente en GitHub Container Registry (GHCR), por lo que solamente identidades autorizadas, como Northflank o el proprietário de la cuenta, pueden descargarla.  
+
+- Northflank almacena profile-config.json privadamente y lo monta como archivo físico dentro del contenedor durante la ejecución.  
+
+- El servicio HTTPS es público porque Northflank expone la API mediante una dirección accesible desde Internet, siendo posible la solicitud mediante `curl`, `PowerShell` u otros clientes HTTP.  
+
 
 ## Tecnologías
 
@@ -243,7 +267,7 @@ Cada perfil contiene su identificador, idioma, nombre, descripción y texto de p
 
 La fuente de datos es un archivo JSON local y multilingüe. Su estructura completa es validada mediante Pydantic antes de formar la respuesta. Los caracteres Unicode son retornados directamente en el JSON, sin transformar los textos localizados en secuencias escapadas.
 
-El endpoint utiliza un archivo de configuración JSON que debe estar disponible durante la construcción de la imagen Docker. El archivo es incorporado físicamente al contenedor de producción y contiene un perfil para cada idioma admitido, además de los datos de contacto. Su estructura es la siguiente:
+El endpoint utiliza un archivo de configuración JSON que permanece fuera del repositorio y de la imagen Docker. En producción, este archivo es incorporado en `/app/config/profile-config.json` durante la ejecución del contenedor. El archivo contiene un perfil para cada idioma admitido, además de los datos de contacto. Su estructura es la siguiente:
 
 ```JSON
 {
@@ -405,7 +429,9 @@ CORS_ALLOWED_ORIGIN
 => origen autorizado para realizar solicitudes desde el frontend
 ```
 
-Ambas configuraciones deben estar disponibles al iniciar la aplicación. Sus valores pueden proceder del sistema local o de la plataforma de ejecución y no se mantienen escritos directamente en el código.
+En producción, `PROFILE_CONFIG_FILE` apunta a `/app/config/profile-config.json`.  
+
+Las variables de entorno deben estar disponibles al iniciar la aplicación. Sus valores proceden del sistema local o de la plataforma de ejecución y no se mantienen escritos directamente en el código.
 
 ## Docker
 
@@ -413,19 +439,21 @@ El `Dockerfile` construye el entorno de ejecución a partir de una imagen de Pyt
 
 La rama utilizada durante la construcción se controla mediante el argumento `SITIO_API_BRANCH`, cuyo valor predeterminado es `main`. Después de obtener el código, Docker instala el grupo de dependencias de producción declarado en `pyproject.toml` y verifica la consistencia de la instalación.
 
-El archivo privado de configuración del perfil se copia desde el contexto de construcción hacia `/app/config/profile-config.json`. Por este motivo, el archivo debe estar disponible físicamente antes de construir la imagen, aunque permanezca excluido del repositorio mediante `.gitignore`.
+La imagen crea el directorio `/app/config`, pero no incorpora el archivo privado `profile-config.json`. Durante la ejecución, el entorno responsable del contenedor debe montar físicamente el archivo en `/app/config/profile-config.json`.
+
+En el desarrollo local, el archivo se monta desde el equipo anfitrión. En producción, Northflank lo almacena como archivo secreto y lo inyecta en la misma ruta.
 
 La aplicación es servida por Gunicorn en el puerto `5000`. El contenedor incluye una comprobación periódica de salud contra el endpoint `/api/v1/health/`.
 
 `.dockerignore` excluye del contexto los entornos virtuales, caches, resultados de cobertura, pruebas, documentación, scripts auxiliares y demás archivos que no forman parte de la ejecución de producción.
 
-Como la imagen contiene el archivo de configuración del perfil, su publicación debe conservarse privada.
+La imagen se almacena de forma privada en GitHub Container Registry.
 
 ## Despliegue
 
-La arquitectura de despliegue definida utiliza una imagen privada almacenada en GitHub Container Registry.
+La imagen de la aplicación es almacenada de forma privada en `GitHub Container Registry` y ejecutada mediante `Northflank Developer Sandbox` en la región `US - Central`.
 
-Northflank Developer Sandbox es responsable de obtener la imagen, proporcionar las variables de entorno, exponer el puerto de la aplicación y mantener el servicio en ejecución.
+Northflank utiliza las credenciales configuradas para obtener la imagen privada desde GitHub Container Registry. La plataforma proporciona las variables de entorno, monta el archivo privado de configuración del perfil, expone el puerto de la aplicación y supervisa el estado del contenedor.
 
 ```text
 main
@@ -439,11 +467,17 @@ GitHub Container Registry
   V
 Northflank Developer Sandbox
   |
+  +-- PROFILE_CONFIG_FILE
+  +-- CORS_ALLOWED_ORIGIN
+  +-- profile-config.json
+  |
   V
 sitio-api
 ```
 
-La publicación de la imagen y la creación del servicio forman parte de la fase de despliegue. Hasta completar esa fase, la arquitectura representa la configuración elegida y no un servicio público ya disponible.
+El despliegue es validado mediante el endpoint de salud.
+
+La construcción y publicación de nuevas imágenes todavía constituyen un proceso separado del workflow de integración y promoción. La configuración privada del perfil queda desacoplada de este proceso porque es administrada directamente por Northflank.
 
 ## Integración y promoción
 
