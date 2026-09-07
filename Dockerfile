@@ -20,12 +20,12 @@ RUN git clone \
     https://github.com/arumeidaaran/sitio-api.git \
     .
 
+RUN mkdir -p /app/config
+
 RUN python -m pip install \
         --no-cache-dir \
         --group prd \
     && python -m pip check
-
-COPY config/profile-config.json /app/config/profile-config.json
 
 EXPOSE 5000
 
