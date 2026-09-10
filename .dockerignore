@@ -22,8 +22,10 @@ Docs/
 
 *.ps1
 ConfigPowerShell.ini
+requirements.txt
 requirements_dev.txt
 README.md
+CHANGELOG.md
 
 logs/
 temporario/

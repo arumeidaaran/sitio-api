@@ -1,6 +1,6 @@
 FROM python:3.14-slim
 
-ARG SITIO_API_BRANCH=main
+ARG SITIO_API_VERSION
 
 ENV PYTHONUNBUFFERED=1
 
@@ -11,21 +11,23 @@ RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y \
         --no-install-recommends \
         ca-certificates \
-        git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone \
-    --branch "${SITIO_API_BRANCH}" \
-    --single-branch \
-    https://github.com/arumeidaaran/sitio-api.git \
-    .
-
-RUN mkdir -p /app/config
+COPY pyproject.toml ./
 
 RUN python -m pip install \
         --no-cache-dir \
         --group prd \
     && python -m pip check
+
+COPY . .
+
+RUN mkdir -p /app/config
+
+RUN test -n "${SITIO_API_VERSION}" \
+    && test \
+        "$(python -c 'from __version__ import __version__; print(__version__)')" \
+        = "${SITIO_API_VERSION}"
 
 EXPOSE 5000
 
