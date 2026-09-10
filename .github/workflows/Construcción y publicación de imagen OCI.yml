@@ -1,0 +1,279 @@
+name: Construcción, publicación y despliegue de imagen OCI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '__version__.py'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NORTHFLANK_API_URL: https://api.northflank.com
+
+jobs:
+  publicacion_y_despliegue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Obtener repositorio
+        uses: actions/checkout@v7
+
+      - name: Configurar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Obtener versión de la aplicación
+        id: version
+        shell: bash
+        run: |
+          version=$(python -c "from __version__ import __version__; print(__version__)")
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Autenticar en GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construir y publicar imagen
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          pull: true
+          no-cache: true
+          platforms: linux/amd64
+          build-args: |
+            SITIO_API_VERSION=${{ steps.version.outputs.value }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.value }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.value }}
+
+      - name: Actualizar servicio en Northflank
+        shell: bash
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+          NORTHFLANK_PROJECT_ID: ${{ vars.NORTHFLANK_PROJECT_ID }}
+          NORTHFLANK_SERVICE_ID: ${{ vars.NORTHFLANK_SERVICE_ID }}
+          NORTHFLANK_REGISTRY_CREDENTIALS_ID: ${{ vars.NORTHFLANK_REGISTRY_CREDENTIALS_ID }}
+          IMAGE_PATH: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.value }}
+        run: |
+          servicio=$(
+            curl \
+              --fail-with-body \
+              --silent \
+              --show-error \
+              --header "Authorization: Bearer $NORTHFLANK_API_KEY" \
+              "$NORTHFLANK_API_URL/v1/projects/$NORTHFLANK_PROJECT_ID/services/$NORTHFLANK_SERVICE_ID"
+          )
+
+          despliegue=$(
+            printf '%s' "$servicio" |
+              jq \
+                --compact-output \
+                --arg image "$IMAGE_PATH" \
+                --arg credentials "$NORTHFLANK_REGISTRY_CREDENTIALS_ID" \
+                '
+                  .data.deployment
+                  | del(.internal)
+                  | .external.imagePath = $image
+                  | .external.credentials = $credentials
+                '
+          )
+
+          cuerpo=$(
+            jq \
+              --null-input \
+              --compact-output \
+              --argjson deployment "$despliegue" \
+              '{deployment: $deployment}'
+          )
+
+          respuesta=$(
+            curl \
+              --fail-with-body \
+              --silent \
+              --show-error \
+              --request PATCH \
+              --header "Authorization: Bearer $NORTHFLANK_API_KEY" \
+              --header 'Content-Type: application/json' \
+              --data "$cuerpo" \
+              "$NORTHFLANK_API_URL/v1/projects/$NORTHFLANK_PROJECT_ID/services/deployment/$NORTHFLANK_SERVICE_ID"
+          )
+
+          imagen_configurada=$(
+            printf '%s' "$respuesta" |
+              jq --raw-output '.data.deployment.external.imagePath'
+          )
+
+          if [ "$imagen_configurada" != "$IMAGE_PATH" ]; then
+            printf 'Northflank no confirmó la imagen solicitada.\n'
+            printf 'Imagen solicitada: %s\n' "$IMAGE_PATH"
+            printf 'Imagen recibida: %s\n' "$imagen_configurada"
+            exit 1
+          fi
+
+          printf 'Northflank recibió la imagen: %s\n' "$imagen_configurada"
+
+      - name: Esperar despliegue en Northflank
+        shell: bash
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+          NORTHFLANK_PROJECT_ID: ${{ vars.NORTHFLANK_PROJECT_ID }}
+          NORTHFLANK_SERVICE_ID: ${{ vars.NORTHFLANK_SERVICE_ID }}
+          IMAGE_PATH: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.value }}
+        run: |
+          despliegue_confirmado=false
+
+          for intento in $(seq 1 60)
+          do
+            if ! servicio=$(
+              curl \
+                --fail-with-body \
+                --silent \
+                --show-error \
+                --header "Authorization: Bearer $NORTHFLANK_API_KEY" \
+                "$NORTHFLANK_API_URL/v1/projects/$NORTHFLANK_PROJECT_ID/services/$NORTHFLANK_SERVICE_ID"
+            )
+            then
+              printf 'Intento %s: no fue posible consultar el servicio.\n' "$intento"
+              sleep 10
+              continue
+            fi
+
+            estado=$(
+              printf '%s' "$servicio" |
+                jq --raw-output '.data.status.deployment.status // "UNKNOWN"'
+            )
+
+            if [ "$estado" = 'FAILED' ]; then
+              printf 'Northflank informó que el despliegue falló.\n'
+              exit 1
+            fi
+
+            if ! despliegues=$(
+              curl \
+                --fail-with-body \
+                --silent \
+                --show-error \
+                --header "Authorization: Bearer $NORTHFLANK_API_KEY" \
+                "$NORTHFLANK_API_URL/v1/projects/$NORTHFLANK_PROJECT_ID/services/$NORTHFLANK_SERVICE_ID/deployments?per_page=20"
+            )
+            then
+              printf 'Intento %s: no fue posible consultar los despliegues.\n' "$intento"
+              sleep 10
+              continue
+            fi
+
+            imagen_activa=$(
+              printf '%s' "$despliegues" |
+                jq \
+                  --raw-output \
+                  --arg image "$IMAGE_PATH" \
+                  '
+                    first(
+                      .data.deployments[]
+                      | select(
+                          .active == true
+                          and .image.imagePath == $image
+                        )
+                      | .image.imagePath
+                    ) // empty
+                  '
+            )
+
+            printf \
+              'Intento %s: estado=%s, imagen activa=%s\n' \
+              "$intento" \
+              "$estado" \
+              "${imagen_activa:-no disponible}"
+
+            if [ "$estado" = 'COMPLETED' ] &&
+                [ "$imagen_activa" = "$IMAGE_PATH" ]
+            then
+              despliegue_confirmado=true
+              break
+            fi
+
+            sleep 10
+          done
+
+          if [ "$despliegue_confirmado" != true ]; then
+            printf 'Northflank no completó el despliegue dentro del tiempo permitido.\n'
+            exit 1
+          fi
+
+          printf 'Despliegue confirmado con la imagen: %s\n' "$IMAGE_PATH"
+
+      - name: Verificar API desplegada
+        shell: bash
+        env:
+          NORTHFLANK_SERVICE_URL: ${{ vars.NORTHFLANK_SERVICE_URL }}
+        run: |
+          api_confirmada=false
+          health_url="${NORTHFLANK_SERVICE_URL%/}/api/v1/health/"
+
+          for intento in $(seq 1 12)
+          do
+            if respuesta=$(
+              curl \
+                --fail-with-body \
+                --silent \
+                --show-error \
+                "$health_url"
+            )
+            then
+              estado=$(
+                printf '%s' "$respuesta" |
+                  jq --raw-output '.status // empty'
+              )
+
+              codigo=$(
+                printf '%s' "$respuesta" |
+                  jq --raw-output '.status_code // empty'
+              )
+
+              if [ "$estado" = 'ok' ] && [ "$codigo" = '200' ]; then
+                api_confirmada=true
+                break
+              fi
+            fi
+
+            printf \
+              'Intento %s: la API todavía no confirmó su estado.\n' \
+              "$intento"
+
+            sleep 5
+          done
+
+          if [ "$api_confirmada" != true ]; then
+            printf 'La API desplegada no superó la comprobación de salud.\n'
+            exit 1
+          fi
+
+          printf 'API disponible en: %s\n' "$health_url"
+
+      - name: Mostrar resultado
+        shell: bash
+        run: |
+          echo "Imagen: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.value }}"
+          echo "Digest: ${{ steps.build.outputs.digest }}"
+          echo "Despliegue de Northflank completado y validado."
