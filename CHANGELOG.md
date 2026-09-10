@@ -6,6 +6,16 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 y este proyecto cumple con [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.2.1] - 2026-09-10
+
+Aplicación: 0.1.1
+
+### Corregido
+
+- Validación del despliegue activo en Northflank mediante la etiqueta de versión de la imagen OCI.
+- Registro de la ruta, la etiqueta y el digest de las imágenes activas durante la espera del despliegue.
+
+
 ## [0.2.0] - 2026-09-08
 
 Aplicación: 0.1.0

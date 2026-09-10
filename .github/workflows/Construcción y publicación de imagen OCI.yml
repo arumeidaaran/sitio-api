@@ -140,6 +140,7 @@ jobs:
           NORTHFLANK_PROJECT_ID: ${{ vars.NORTHFLANK_PROJECT_ID }}
           NORTHFLANK_SERVICE_ID: ${{ vars.NORTHFLANK_SERVICE_ID }}
           IMAGE_PATH: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.value }}
+          IMAGE_VERSION: ${{ steps.version.outputs.value }}
         run: |
           despliegue_confirmado=false
 
@@ -164,6 +165,11 @@ jobs:
                 jq --raw-output '.data.status.deployment.status // "UNKNOWN"'
             )
 
+            imagen_configurada=$(
+              printf '%s' "$servicio" |
+                jq --raw-output '.data.deployment.external.imagePath // empty'
+            )
+
             if [ "$estado" = 'FAILED' ]; then
               printf 'Northflank informó que el despliegue falló.\n'
               exit 1
@@ -183,31 +189,47 @@ jobs:
               continue
             fi
 
-            imagen_activa=$(
+            imagenes_activas=$(
+              printf '%s' "$despliegues" |
+                jq \
+                  --compact-output \
+                  '
+                    [
+                      .data.deployments[]?
+                      | select(.active == true)
+                      | {
+                          imagePath: .image.imagePath,
+                          tag: .image.tag,
+                          sha: .image.sha
+                        }
+                    ]
+                  '
+            )
+
+            version_activa=$(
               printf '%s' "$despliegues" |
                 jq \
                   --raw-output \
-                  --arg image "$IMAGE_PATH" \
+                  --arg version "$IMAGE_VERSION" \
                   '
-                    first(
-                      .data.deployments[]
-                      | select(
-                          .active == true
-                          and .image.imagePath == $image
-                        )
-                      | .image.imagePath
-                    ) // empty
+                    any(
+                      .data.deployments[]?;
+                      .active == true
+                      and .image.tag == $version
+                    )
                   '
             )
 
             printf \
-              'Intento %s: estado=%s, imagen activa=%s\n' \
+              'Intento %s: estado=%s, imagen configurada=%s, despliegues activos=%s\n' \
               "$intento" \
               "$estado" \
-              "${imagen_activa:-no disponible}"
+              "${imagen_configurada:-no disponible}" \
+              "$imagenes_activas"
 
             if [ "$estado" = 'COMPLETED' ] &&
-                [ "$imagen_activa" = "$IMAGE_PATH" ]
+                [ "$imagen_configurada" = "$IMAGE_PATH" ] &&
+                [ "$version_activa" = 'true' ]
             then
               despliegue_confirmado=true
               break
